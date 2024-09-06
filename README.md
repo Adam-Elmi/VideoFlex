@@ -1,6 +1,8 @@
 # NobleUtils - `videoFlex` Utility
 
-### Function: `videoFlex(videoElement, width)`
+### Function:
+ 
+- `videoFlex(videoElement, width)`
 
 ### Parameters:
 

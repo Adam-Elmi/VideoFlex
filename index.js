@@ -73,7 +73,6 @@ function videoFlex(videoElement, width = 50) {
             min-height: 260px;
             min-width: 320px;
             background-color: brown;
-            position: relative;
             margin: 1rem auto;
         `;
     }

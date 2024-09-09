@@ -6,124 +6,113 @@
  */
 
 function videoFlex(videoElement, width = 50) {
-    if (!videoElement || !videoElement.parentElement) return;
-
-    const src = videoElement.getAttribute('src');
-    if (src) {
-        const videoExtensions = [
-            '.mp4', '.avi', '.mov', '.mkv', '.wmv', '.flv', '.webm', '.mpeg', '.mpg', '.ogv'
-        ];
-        const extension = videoExtensions.find(ext => src.endsWith(ext));
-        if (!extension) {
-            console.log('The extension you are searching is not found!');
-            return;
-        }
-    } else {
-        console.log('No source attribute found!');
+    if (!videoElement || !(videoElement instanceof HTMLVideoElement)) {
+        console.error('Invalid video element provided');
         return;
     }
 
-    let height;
-
-    // Determine height based on width
-    switch (true) {
-        case width <= 20:
-            height = 30;  // Minimum height for very small widths
-            break;
-        case width > 20 && width <= 30:
-            height = 40;
-            break;
-        case width > 30 && width <= 40:
-            height = 60;
-            break;
-        case width > 40 && width <= 50:
-            height = 70;
-            break;
-        case width > 50 && width <= 60:
-            height = 85;
-            break;
-        case width > 60 && width <= 70:
-            height = 90;
-            break;
-        case width > 70:
-            width = 70;
-            height = 100;
-            break;
-        default:
-            height = 70;   // Default height if width is out of the expected range
-    }
-
     const parent = videoElement.parentElement;
-
-    // Ensure parent has non-static position
-    function ensureRelativePosition() {
-        const position = window.getComputedStyle(parent).position;
-        if (position === 'static') {
-            parent.style.position = 'relative';
-        }
+    if (!parent) {
+        console.error('Video element has no parent');
+        return;
     }
 
-    // Apply styles to parent element
-    function applyParentStyles() {
+    // Validate video source
+    const src = videoElement.getAttribute('src');
+    if (!src) {
+        console.error('No source attribute found!');
+        return;
+    }
+
+    const videoExtensions = ['.mp4', '.webm', '.ogg']; // Reduced to most common web video formats
+    if (!videoExtensions.some(ext => src.toLowerCase().endsWith(ext))) {
+        console.error('Unsupported video format');
+        return;
+    }
+
+    // valid range
+    width = Math.max(20, Math.min(100, width));
+
+    // Simplified height calculation
+    const height = Math.min(100, Math.max(30, Math.round(width * 1.2)));
+
+    // Apply styles
+    const applyStyles = () => {
         parent.style.cssText = `
             width: ${width}%;
-            height: calc(.5625 * ${height}vw);
+            height: calc(${height}vw * 0.5625);
             max-width: 1280px;
             max-height: 720px;
             min-height: 260px;
             min-width: 320px;
-            background-color: brown;
-            margin: 1rem auto;
+            background-color: #000;
+            position: relative;
         `;
-    }
 
-    // Apply initial styles to video element
-    function applyVideoStyles() {
         videoElement.style.cssText = `
             width: 100%;
             height: 100%;
-            max-height: 100%;
             position: absolute;
             top: 0;
             left: 0;
-            object-fit: cover;
-            z-index: 1;
+            object-fit: contain;
         `;
+    };
+
+    // Handle fullscreen changes
+    const handleFullscreenChange = () => {
+        const isFullscreen = document.fullscreenElement === parent;
+        parent.style.width = isFullscreen ? '100%' : `${width}%`;
+        parent.style.height = isFullscreen ? '100%' : `calc(${height}vw * 0.5625)`;
+        videoElement.style.objectFit = isFullscreen ? 'contain' : 'cover';
+    };
+
+    // Initialize
+    applyStyles();
+
+    // Set up event listeners
+    const fullscreenEvents = ['fullscreenchange', 'webkitfullscreenchange', 'mozfullscreenchange', 'MSFullscreenChange'];
+    fullscreenEvents.forEach(event => document.addEventListener(event, handleFullscreenChange));
+
+    // Clean up function
+    return () => {
+        fullscreenEvents.forEach(event => document.removeEventListener(event, handleFullscreenChange));
+    };
+}
+
+// Usage
+document.addEventListener('DOMContentLoaded', () => {
+    const video = document.querySelector('video');
+    if (video) {
+        const cleanup = videoFlex(video, 60);
+        
+        // unload
+        window.addEventListener('beforeunload', () => {
+            if (typeof cleanup === 'function') {
+                cleanup();
+            } else {
+                console.warn('cleanup is not a function');
+            }
+        });
+
+        // Add fullscreen toggle functionality
+        video.addEventListener('dblclick', () => {
+            if (!document.fullscreenElement) {
+                video.parentElement.requestFullscreen().catch(err => {
+                    console.error(`Error attempting to enable fullscreen: ${err.message}`);
+                });
+            } else {
+                document.exitFullscreen();
+            }
+        });
+
+        // Add play/pause toggle on click
+        video.addEventListener('click', () => {
+            if (video.paused) {
+                video.play();
+            } else {
+                video.pause();
+            }
+        });
     }
-
-    // Update styles for fullscreen mode
-    function updateFullscreenStyles() {
-        if (document.fullscreenElement) {
-            parent.style.width = '100%';
-            parent.style.height = '100%';
-            videoElement.style.width = '100%';
-            videoElement.style.height = '100%';
-            videoElement.style.objectFit = 'contain';
-        } else {
-            applyParentStyles();
-            applyVideoStyles();
-        }
-    }
-
-    // Initialize the video element responsiveness
-    function initialize() {
-        ensureRelativePosition();
-        applyParentStyles();
-        applyVideoStyles();
-    }
-
-    // Listen for fullscreen changes
-    function setupFullscreenListeners() {
-        document.addEventListener('fullscreenchange', updateFullscreenStyles);
-        document.addEventListener('webkitfullscreenchange', updateFullscreenStyles); // For Safari
-        document.addEventListener('mozfullscreenchange', updateFullscreenStyles); // For Firefox
-        document.addEventListener('MSFullscreenChange', updateFullscreenStyles); // For IE/Edge
-    }
-
-    window.addEventListener('load', () => {
-        initialize();
-        setupFullscreenListeners();
-    });
-};
-
-
+});
